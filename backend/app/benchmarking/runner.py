@@ -34,6 +34,8 @@ def run_embedding_benchmark(backend_name: str, dataset_size: int, repeats: int =
     else:
         backend = CPUEmbeddingBackend()
 
+    backend.encode(texts)
+
     durations = []
     for run_index in range(repeats):
         start_time = time.perf_counter()
