@@ -41,3 +41,5 @@ Desktop.ini
 .vscode/
 *.swp
 *.swo
+
+backend/tests/sample_files/

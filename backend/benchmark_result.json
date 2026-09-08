@@ -1,0 +1,15 @@
+[
+  {
+    "operation": "embedding_generation",
+    "backend": "cpu",
+    "dataset_size": 20,
+    "repeats": 3,
+    "durations_seconds": [
+      0.18984470004215837,
+      0.16812329995445907,
+      0.16338689997792244
+    ],
+    "mean_time_seconds": 0.1738,
+    "throughput_texts_per_second": 115.08
+  }
+]

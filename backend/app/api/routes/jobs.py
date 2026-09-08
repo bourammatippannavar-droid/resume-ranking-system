@@ -1,0 +1,53 @@
+import logging
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.db.models import Job
+from app.db.session import get_db
+from app.schemas.job import JobCreate, JobResponse, JobWeightsUpdate
+
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
+
+
+@router.post("/", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
+def create_job(job_data: JobCreate, db: Session = Depends(get_db)) -> Job:
+    job = Job(
+        title=job_data.title,
+        description_raw=job_data.description_raw,
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    logger.info("Created job %s", job.id)
+    return job
+
+
+@router.get("/{job_id}", response_model=JobResponse)
+def get_job(job_id: int, db: Session = Depends(get_db)) -> Job:
+    job = db.get(Job, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
+@router.put("/{job_id}/weights", response_model=JobResponse)
+def update_job_weights(
+    job_id: int,
+    weights: JobWeightsUpdate,
+    db: Session = Depends(get_db),
+) -> Job:
+    job = db.get(Job, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    for field, value in weights.model_dump(exclude_none=True).items():
+        setattr(job, field, value)
+
+    db.commit()
+    db.refresh(job)
+    logger.info("Updated weights for job %s", job.id)
+    return job
