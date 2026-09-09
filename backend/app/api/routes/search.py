@@ -1,4 +1,5 @@
 import logging
+import time
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -16,7 +17,7 @@ from app.ranking.scorer import (
     calculate_final_score,
     calculate_skills_score,
 )
-from app.vector_search.faiss_backend import FAISSBackend
+from app.vector_search.index_manager import load_or_create_index
 
 logger = logging.getLogger(__name__)
 
@@ -40,19 +41,20 @@ def search_candidates(job_id: int, db: Session = Depends(get_db)) -> list[dict]:
     job_text = job.description_clean or job.description_raw
     job_vector = _embedding_backend.encode([job_text])[0]
 
-    candidate_texts = [candidate.clean_text or candidate.raw_text or "" for candidate in candidates]
-    candidate_vectors = _embedding_backend.encode(candidate_texts)
-
-    search_index = FAISSBackend(dimension=len(job_vector))
-    search_index.add(candidate_vectors, ids=[candidate.id for candidate in candidates])
-
+    query_start = time.perf_counter()
+    search_index = load_or_create_index(job_id)
     raw_results = search_index.search(job_vector, top_k=len(candidates))
+    query_elapsed = time.perf_counter() - query_start
+    logger.info("Search query completed in %.4f seconds (loaded persisted index)", query_elapsed)
 
     candidates_by_id = {candidate.id: candidate for candidate in candidates}
     ranked_results = []
 
     for candidate_id, semantic_score in raw_results:
-        candidate = candidates_by_id[candidate_id]
+        candidate = candidates_by_id.get(candidate_id)
+        if candidate is None:
+            continue
+
         candidate_text = candidate.clean_text or candidate.raw_text or ""
         candidate_skills = extract_skills(candidate_text)
         candidate_years = extract_experience_years(candidate_text)
@@ -107,5 +109,10 @@ def search_candidates(job_id: int, db: Session = Depends(get_db)) -> list[dict]:
 
     db.commit()
     ranked_results.sort(key=lambda item: item["final_score"], reverse=True)
-    logger.info("Ranked %d candidates for job %s", len(ranked_results), job_id)
+    logger.info(
+        "Ranked %d candidates for job %s (query_time=%.4fs)",
+        len(ranked_results),
+        job_id,
+        query_elapsed,
+    )
     return ranked_results

@@ -53,3 +53,22 @@ class FAISSBackend(VectorSearchBackend):
             if idx != -1
         ]
         return results
+
+    def contains_id(self, candidate_id: int) -> bool:
+        """Check whether a given id is already present in the index."""
+        return self.index.id_map.at(0) is not None and candidate_id in [
+            self.index.id_map.at(i) for i in range(self.index.ntotal)
+        ]
+
+    def save(self, path: str) -> None:
+        """Persist the FAISS index to disk."""
+        faiss.write_index(self.index, path)
+        logger.info("Saved FAISS index to %s (%d vectors)", path, self.index.ntotal)
+
+    @classmethod
+    def load(cls, path: str, dimension: int) -> "FAISSBackend":
+        """Load a previously persisted FAISS index from disk."""
+        backend = cls(dimension=dimension)
+        backend.index = faiss.read_index(path)
+        logger.info("Loaded FAISS index from %s (%d vectors)", path, backend.index.ntotal)
+        return backend

@@ -9,15 +9,18 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Candidate, Job
 from app.db.session import get_db
+from app.embeddings.cpu_backend import CPUEmbeddingBackend
 from app.parsing.docx_parser import DOCXParsingError, extract_text_from_docx
 from app.parsing.pdf_parser import PDFParsingError, extract_text_from_pdf
 from app.parsing.text_cleaner import clean_text
 from app.schemas.candidate import CandidateDetailResponse, CandidateResponse
-
+from app.vector_search.index_manager import load_or_create_index, save_index
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/jobs", tags=["candidates"])
+
+_embedding_backend = CPUEmbeddingBackend()
 
 
 @router.post("/{job_id}/candidates")
@@ -75,6 +78,15 @@ def upload_candidates(
     db.commit()
     for candidate in created:
         db.refresh(candidate)
+
+    if created:
+        index = load_or_create_index(job_id)
+        new_texts = [candidate.clean_text or candidate.raw_text or "" for candidate in created]
+        new_vectors = _embedding_backend.encode(new_texts)
+        new_ids = [candidate.id for candidate in created]
+        index.add(new_vectors, new_ids)
+        save_index(job_id, index)
+        logger.info("Indexed %d new candidate(s) for job %s", len(created), job_id)
 
     logger.info(
         "Processed candidate uploads for job %s: %d created, %d failed",
