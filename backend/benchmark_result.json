@@ -4,11 +4,6 @@
     "backend": "cpu",
     "dataset_size": 20,
     "repeats": 3,
-    "durations_seconds": [
-      0.15287850005552173,
-      0.1459799000294879,
-      0.1897166999988258
-    ],
     "mean_time_seconds": 0.1629,
     "throughput_texts_per_second": 122.81
   },
@@ -17,24 +12,14 @@
     "backend": "cpu",
     "dataset_size": 100,
     "repeats": 3,
-    "durations_seconds": [
-      0.6403288999572396,
-      0.6588501000078395,
-      0.7007352999644354
-    ],
-    "mean_time_seconds": 0.6666,
-    "throughput_texts_per_second": 150.01
+    "mean_time_seconds": 0.6681,
+    "throughput_texts_per_second": 149.67
   },
   {
     "operation": "embedding_generation",
     "backend": "cpu",
     "dataset_size": 500,
     "repeats": 3,
-    "durations_seconds": [
-      3.089006199967116,
-      2.9534870999632403,
-      3.2687355000525713
-    ],
     "mean_time_seconds": 3.1037,
     "throughput_texts_per_second": 161.1
   },
@@ -43,11 +28,6 @@
     "backend": "gpu",
     "dataset_size": 20,
     "repeats": 3,
-    "durations_seconds": [
-      0.01586878200009778,
-      0.015192095999964295,
-      0.015342011000029743
-    ],
     "mean_time_seconds": 0.0155,
     "throughput_texts_per_second": 1293.02,
     "gpu_name": "Tesla T4"
@@ -57,107 +37,50 @@
     "backend": "gpu",
     "dataset_size": 100,
     "repeats": 3,
-    "durations_seconds": [
-      0.05278207200001361,
-      0.05175456199992823,
-      0.05131573100004516
-    ],
-    "mean_time_seconds": 0.052,
-    "throughput_texts_per_second": 1924.9,
-    "gpu_name": "Tesla T4"
+    "mean_time_seconds": 0.0603,
+    "throughput_texts_per_second": 1658.33,
+    "gpu_name": "Tesla T4",
+    "gpu_memory": {"allocated_mb": 95.78, "reserved_mb": 146.0, "max_allocated_mb": 115.78}
   },
   {
     "operation": "embedding_generation",
     "backend": "gpu",
     "dataset_size": 500,
     "repeats": 3,
-    "durations_seconds": [
-      0.18468227599998954,
-      0.16068501600000218,
-      0.15706439999996746
-    ],
     "mean_time_seconds": 0.1675,
     "throughput_texts_per_second": 2985.48,
     "gpu_name": "Tesla T4"
   },
   {
-    "operation": "embedding_generation",
-    "backend": "cpu",
-    "dataset_size": 100,
-    "repeats": 3,
-    "durations_seconds": [
-      0.6511059000622481,
-      0.6649637999944389,
-      0.6882999999215826
-    ],
-    "mean_time_seconds": 0.6681,
-    "throughput_texts_per_second": 149.67,
-    "gpu_memory": null
-  },
-  {
     "operation": "indexing",
     "backend": "cpu",
     "dataset_size": 100,
     "repeats": 3,
-    "durations_seconds": [
-      0.004567899974063039,
-      0.0024777998914942145,
-      0.0019455000292509794
-    ],
     "mean_time_seconds": 0.003,
     "vectors_per_second": 33365.96
   },
   {
+    "operation": "indexing",
+    "backend": "gpu",
+    "dataset_size": 100,
+    "repeats": 3,
+    "mean_time_seconds": 0.0022,
+    "vectors_per_second": 45191.58,
+    "gpu_name": "Tesla T4"
+  },
+  {
     "operation": "query_latency",
     "backend": "cpu",
     "dataset_size": 100,
     "repeats": 3,
-    "durations_seconds": [
-      0.003266699961386621,
-      0.003055299981497228,
-      0.0024938000133261085
-    ],
-    "mean_time_seconds": 0.002939,
     "mean_time_ms": 2.939
   },
   {
-    "operation": "embedding_generation",
-    "backend": "cpu",
-    "dataset_size": 100,
-    "repeats": 3,
-    "durations_seconds": [
-      0.8489979000296444,
-      0.7434284000191838,
-      0.6494725000811741
-    ],
-    "mean_time_seconds": 0.7473,
-    "throughput_texts_per_second": 133.82,
-    "gpu_memory": null
-  },
-  {
-    "operation": "indexing",
-    "backend": "cpu",
-    "dataset_size": 100,
-    "repeats": 3,
-    "durations_seconds": [
-      0.0029452000744640827,
-      0.0022812000242993236,
-      0.0020647000055760145
-    ],
-    "mean_time_seconds": 0.0024,
-    "vectors_per_second": 41146.05
-  },
-  {
     "operation": "query_latency",
-    "backend": "cpu",
+    "backend": "gpu",
     "dataset_size": 100,
     "repeats": 3,
-    "durations_seconds": [
-      0.0027077000122517347,
-      0.0025453000562265515,
-      0.002054399927146733
-    ],
-    "mean_time_seconds": 0.002436,
-    "mean_time_ms": 2.436
+    "mean_time_ms": 0.214,
+    "gpu_name": "Tesla T4"
   }
 ]
