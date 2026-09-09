@@ -22,6 +22,15 @@ app.include_router(candidates_router)
 app.include_router(search_router)
 
 
+@app.on_event("startup")
+def warm_up_models() -> None:
+    """Pre-load spaCy and embedding models at startup to avoid slow first-request latency."""
+    logger.info("Warming up NLP models...")
+    from app.extraction.education_extractor import extract_education
+    extract_education("Bachelor of Engineering from a University")
+    logger.info("Model warm-up complete")
+
+
 @app.get("/health")
 def health_check() -> dict[str, str]:
     try:

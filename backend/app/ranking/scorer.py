@@ -18,6 +18,24 @@ def calculate_experience_score(candidate_years: float | None, required_years: fl
     return min(candidate_years / required_years, 1.0)
 
 
+def calculate_education_score(education_entries: list[dict]) -> float:
+    """Return 1.0 if any degree was detected, 0.0 otherwise. A simple presence-based signal."""
+    if not education_entries:
+        return 0.0
+    return 1.0
+
+
+def calculate_certification_score(candidate_certifications: list[str], job_certifications: list[str] | None = None) -> float:
+    """Return 1.0 if candidate has any recognized certification when none specifically required,
+    or the match fraction against job-required certifications when specified."""
+    if not candidate_certifications:
+        return 0.0
+    if not job_certifications:
+        return 1.0
+    matched = set(candidate_certifications) & set(job_certifications)
+    return len(matched) / len(job_certifications)
+
+
 def calculate_final_score(
     semantic_score: float,
     skills_score: float,
