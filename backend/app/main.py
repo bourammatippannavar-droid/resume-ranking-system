@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,7 +18,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Warming up NLP models...")
+    from app.extraction.education_extractor import extract_education
+    extract_education("Bachelor of Engineering from a University")
+    logger.info("Model warm-up complete")
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,15 +41,6 @@ app.add_middleware(
 app.include_router(jobs_router)
 app.include_router(candidates_router)
 app.include_router(search_router)
-
-
-@app.on_event("startup")
-def warm_up_models() -> None:
-    """Pre-load spaCy and embedding models at startup to avoid slow first-request latency."""
-    logger.info("Warming up NLP models...")
-    from app.extraction.education_extractor import extract_education
-    extract_education("Bachelor of Engineering from a University")
-    logger.info("Model warm-up complete")
 
 
 @app.get("/health")
