@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import Job
@@ -24,6 +25,11 @@ def create_job(job_data: JobCreate, db: Session = Depends(get_db)) -> Job:
     db.refresh(job)
     logger.info("Created job %s", job.id)
     return job
+
+
+@router.get("/", response_model=list[JobResponse])
+def list_jobs(db: Session = Depends(get_db)) -> list[Job]:
+    return list(db.scalars(select(Job).order_by(Job.created_at.desc())).all())
 
 
 @router.get("/{job_id}", response_model=JobResponse)
