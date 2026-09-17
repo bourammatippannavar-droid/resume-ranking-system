@@ -36,7 +36,11 @@ def search_candidates(job_id: int, db: Session = Depends(get_db)) -> list[dict]:
     if not candidates:
         raise HTTPException(status_code=400, detail="No candidates uploaded for this job")
 
-    job_skills = extract_skills(job.description_raw)
+    if job.required_skills:
+        job_skills = [skill.lower() for skill in job.required_skills]
+    else:
+        job_skills = extract_skills(job.description_raw)
+
     job_certifications = extract_certifications(job.description_raw)
     job_text = job.description_clean or job.description_raw
     job_vector = _embedding_backend.encode([job_text])[0]
@@ -56,7 +60,11 @@ def search_candidates(job_id: int, db: Session = Depends(get_db)) -> list[dict]:
             continue
 
         candidate_text = candidate.clean_text or candidate.raw_text or ""
-        candidate_skills = extract_skills(candidate_text)
+        candidate_text_lower = candidate_text.lower()
+        candidate_skills = [skill for skill in job_skills if skill in candidate_text_lower]
+        if not job.required_skills:
+            candidate_skills = extract_skills(candidate_text)
+
         candidate_years = extract_experience_years(candidate_text)
         candidate_education = extract_education(candidate_text)
         candidate_certifications = extract_certifications(candidate_text)
@@ -101,7 +109,7 @@ def search_candidates(job_id: int, db: Session = Depends(get_db)) -> list[dict]:
                 "education_score": round(education_score, 4),
                 "certification_score": round(certification_score, 4),
                 "final_score": round(final_score, 4),
-                "matched_skills": list(set(candidate_skills) & set(job_skills)),
+                "matched_skills": candidate_skills,
                 "education": candidate_education,
                 "certifications": candidate_certifications,
             }
@@ -109,10 +117,5 @@ def search_candidates(job_id: int, db: Session = Depends(get_db)) -> list[dict]:
 
     db.commit()
     ranked_results.sort(key=lambda item: item["final_score"], reverse=True)
-    logger.info(
-        "Ranked %d candidates for job %s (query_time=%.4fs)",
-        len(ranked_results),
-        job_id,
-        query_elapsed,
-    )
+    logger.info("Ranked %d candidates for job %s", len(ranked_results), job_id)
     return ranked_results

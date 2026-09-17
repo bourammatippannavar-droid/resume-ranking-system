@@ -3,7 +3,7 @@ import os
 import tempfile
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status as http_status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -13,7 +13,12 @@ from app.embeddings.cpu_backend import CPUEmbeddingBackend
 from app.parsing.docx_parser import DOCXParsingError, extract_text_from_docx
 from app.parsing.pdf_parser import PDFParsingError, extract_text_from_pdf
 from app.parsing.text_cleaner import clean_text
-from app.schemas.candidate import CandidateDetailResponse, CandidateNotesUpdate, CandidateResponse
+from app.schemas.candidate import (
+    CandidateDetailResponse,
+    CandidateNotesUpdate,
+    CandidateResponse,
+    CandidateStatusUpdate,
+)
 from app.vector_search.index_manager import load_or_create_index, save_index
 
 logger = logging.getLogger(__name__)
@@ -21,6 +26,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/jobs", tags=["candidates"])
 
 _embedding_backend = CPUEmbeddingBackend()
+
+VALID_STATUSES = {"Under Review", "Shortlisted", "Rejected"}
 
 
 @router.post("/{job_id}/candidates")
@@ -154,8 +161,39 @@ def update_candidate_notes(
     return candidate
 
 
-@router.delete(    "/{job_id}/candidates/{candidate_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+@router.put(
+    "/{job_id}/candidates/{candidate_id}/status",
+    response_model=CandidateDetailResponse,
+)
+def update_candidate_status(
+    job_id: int,
+    candidate_id: int,
+    status_data: CandidateStatusUpdate,
+    db: Session = Depends(get_db),
+) -> Candidate:
+    if status_data.status not in VALID_STATUSES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Status must be one of: {', '.join(VALID_STATUSES)}",
+        )
+    candidate = db.scalar(
+        select(Candidate).where(
+            Candidate.id == candidate_id,
+            Candidate.job_id == job_id,
+        )
+    )
+    if candidate is None:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    candidate.status = status_data.status
+    db.commit()
+    db.refresh(candidate)
+    logger.info("Updated status for candidate %s to %s", candidate_id, status_data.status)
+    return candidate
+
+
+@router.delete(
+    "/{job_id}/candidates/{candidate_id}",
+    status_code=http_status.HTTP_204_NO_CONTENT,
 )
 def delete_candidate(
     job_id: int,
@@ -173,4 +211,3 @@ def delete_candidate(
     db.delete(candidate)
     db.commit()
     logger.info("Deleted candidate %s from job %s", candidate_id, job_id)
-

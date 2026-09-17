@@ -25,6 +25,10 @@ class Job(Base):
     weight_experience: Mapped[float] = mapped_column(Float, default=0.15)
     weight_education: Mapped[float] = mapped_column(Float, default=0.1)
     weight_certifications: Mapped[float] = mapped_column(Float, default=0.05)
+    required_skills: Mapped[Any | None] = mapped_column(JSON, nullable=True)
+    experience_level: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    job_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    work_mode: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     candidates: Mapped[list["Candidate"]] = relationship(
@@ -43,6 +47,7 @@ class Candidate(Base):
     clean_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     file_type: Mapped[str] = mapped_column(String(10), nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="Under Review")
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     job: Mapped[Job] = relationship(back_populates="candidates")
@@ -104,4 +109,6 @@ class Score(Base):
     certification_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     final_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     ranked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 

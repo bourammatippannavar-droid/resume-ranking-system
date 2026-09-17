@@ -58,13 +58,35 @@ function JobsListPage() {
             className="group block bg-white rounded-xl border border-gray-200 p-5 hover:border-teal-300 hover:shadow-sm transition-all"
           >
             <div className="flex items-center justify-between gap-4">
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="font-semibold text-gray-900 group-hover:text-teal-700 transition-colors">
                   {job.title}
                 </p>
                 <p className="text-sm text-gray-500 mt-0.5 truncate">
                   {job.description_raw}
                 </p>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {job.experience_level && (
+                    <span className="bg-violet-50 text-violet-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                      {job.experience_level}
+                    </span>
+                  )}
+                  {job.job_type && (
+                    <span className="bg-amber-50 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                      {job.job_type}
+                    </span>
+                  )}
+                  {job.work_mode && (
+                    <span className="bg-blue-50 text-blue-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                      {job.work_mode}
+                    </span>
+                  )}
+                  {job.required_skills && job.required_skills.slice(0, 3).map((skill) => (
+                    <span key={skill} className="bg-teal-50 text-teal-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                      {skill}
+                    </span>
+                  ))}
+                </div>
               </div>
               <span className="text-xs text-gray-400 flex-shrink-0 whitespace-nowrap">
                 {new Date(job.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}

@@ -19,6 +19,10 @@ def create_job(job_data: JobCreate, db: Session = Depends(get_db)) -> Job:
     job = Job(
         title=job_data.title,
         description_raw=job_data.description_raw,
+        required_skills=job_data.required_skills,
+        experience_level=job_data.experience_level,
+        job_type=job_data.job_type,
+        work_mode=job_data.work_mode,
     )
     db.add(job)
     db.commit()

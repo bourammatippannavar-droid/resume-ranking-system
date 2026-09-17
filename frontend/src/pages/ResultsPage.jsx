@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
-import { useParams } from "react-router-dom";
-import { searchCandidates, updateJobWeights } from "../api/client";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useParams, Link } from "react-router-dom";
+import { searchCandidates, updateJobWeights, getJob, updateCandidateStatus, exportResultsUrl } from "../api/client";
 
 const DEFAULT_WEIGHTS = {
   weight_semantic: 0.5,
@@ -24,6 +24,13 @@ const RANK_STYLES = {
   3: "bg-gradient-to-br from-amber-600 to-amber-700 text-white",
 };
 
+const STATUS_OPTIONS = ["Under Review", "Shortlisted", "Rejected"];
+const STATUS_COLORS = {
+  "Under Review": "bg-gray-100 text-gray-700",
+  "Shortlisted": "bg-emerald-100 text-emerald-700",
+  "Rejected": "bg-red-100 text-red-700",
+};
+
 function ScoreBar({ label, value, colorClass }) {
   return (
     <div className="flex items-center gap-3 text-xs">
@@ -36,9 +43,19 @@ function ScoreBar({ label, value, colorClass }) {
   );
 }
 
-function CandidateCard({ candidate, rank }) {
+function CandidateCard({ candidate, rank, jobId, onStatusChange }) {
   const [expanded, setExpanded] = useState(false);
   const rankClass = RANK_STYLES[rank] || "bg-gray-100 text-gray-600";
+
+  const handleStatusChange = async (event) => {
+    const newStatus = event.target.value;
+    try {
+      await updateCandidateStatus(jobId, candidate.candidate_id, newStatus);
+      onStatusChange(candidate.candidate_id, newStatus);
+    } catch (err) {
+      // silently ignore for now
+    }
+  };
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-5 hover:shadow-sm transition-shadow">
@@ -60,15 +77,29 @@ function CandidateCard({ candidate, rank }) {
         </div>
       </div>
 
-      {candidate.matched_skills.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-3.5">
+      <div className="flex items-center justify-between mt-3.5">
+        <div className="flex flex-wrap gap-1.5">
           {candidate.matched_skills.map((skill) => (
             <span key={skill} className="bg-teal-50 text-teal-700 text-xs font-medium px-2.5 py-1 rounded-full">
               {skill}
             </span>
           ))}
+          {candidate.missing_skills && candidate.missing_skills.map((skill) => (
+            <span key={skill} className="bg-gray-100 text-gray-400 text-xs font-medium px-2.5 py-1 rounded-full line-through">
+              {skill}
+            </span>
+          ))}
         </div>
-      )}
+        <select
+          value={candidate.status || "Under Review"}
+          onChange={handleStatusChange}
+          className={"text-xs font-medium px-2.5 py-1 rounded-full border-0 cursor-pointer flex-shrink-0 " + (STATUS_COLORS[candidate.status] || STATUS_COLORS["Under Review"])}
+        >
+          {STATUS_OPTIONS.map((option) => (
+            <option key={option} value={option}>{option}</option>
+          ))}
+        </select>
+      </div>
 
       <button
         onClick={() => setExpanded(!expanded)}
@@ -105,11 +136,18 @@ function CandidateCard({ candidate, rank }) {
 
 function ResultsPage() {
   const { jobId } = useParams();
+  const [job, setJob] = useState(null);
   const [results, setResults] = useState([]);
   const [weights, setWeights] = useState(DEFAULT_WEIGHTS);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [minScore, setMinScore] = useState(0);
+
+  useEffect(() => {
+    getJob(jobId).then((response) => setJob(response.data)).catch(() => {});
+  }, [jobId]);
 
   const runSearch = useCallback(async () => {
     setIsLoading(true);
@@ -128,6 +166,12 @@ function ResultsPage() {
   useEffect(() => {
     runSearch();
   }, [runSearch]);
+
+  const handleStatusChange = (candidateId, newStatus) => {
+    setResults((prev) =>
+      prev.map((c) => (c.candidate_id === candidateId ? { ...c, status: newStatus } : c))
+    );
+  };
 
   const handleWeightChange = (key, value) => {
     setWeights((prev) => ({ ...prev, [key]: parseFloat(value) }));
@@ -148,71 +192,159 @@ function ResultsPage() {
   const weightSum = Object.values(weights).reduce((a, b) => a + b, 0);
   const sumIsValid = Math.abs(weightSum - 1) < 0.01;
 
+  const filteredResults = useMemo(() => {
+    return results.filter((candidate) => {
+      const statusMatches = statusFilter === "All" || candidate.status === statusFilter;
+      const scoreMatches = candidate.final_score * 100 >= minScore;
+      return statusMatches && scoreMatches;
+    });
+  }, [results, statusFilter, minScore]);
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <div className="lg:col-span-2">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Ranked Candidates</h1>
-          <p className="text-gray-500 mt-1.5">Sorted by weighted final score, highest first.</p>
+    <div>
+      <Link to="/" className="text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-1 mb-4">
+        Back to Dashboard
+      </Link>
+
+      {job && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
+          <div className="flex items-start justify-between">
+            <h1 className="text-2xl font-bold text-gray-900">{job.title}</h1>
+            {results.length > 0 && (
+              <a                href={exportResultsUrl(jobId)}
+                className="text-sm font-medium bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors flex-shrink-0"
+              >
+                Export CSV
+              </a>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5 mt-3">
+            {job.experience_level && (
+              <span className="bg-violet-50 text-violet-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                {job.experience_level}
+              </span>
+            )}
+            {job.job_type && (
+              <span className="bg-amber-50 text-amber-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                {job.job_type}
+              </span>
+            )}
+            {job.work_mode && (
+              <span className="bg-blue-50 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                {job.work_mode}
+              </span>
+            )}
+          </div>
+          {job.required_skills && job.required_skills.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2.5">
+              {job.required_skills.map((skill) => (
+                <span key={skill} className="bg-teal-50 text-teal-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                  {skill}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
+      )}
 
-        {isLoading && (
-          <div className="flex items-center gap-2 text-gray-400 text-sm py-8 justify-center">
-            <div className="w-4 h-4 border-2 border-gray-300 border-t-teal-500 rounded-full animate-spin" />
-            Ranking candidates...
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 tracking-tight">Ranked Candidates</h2>
+              <p className="text-gray-500 mt-1">Sorted by weighted final score, highest first.</p>
+            </div>
+            <div className="flex gap-2">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white"
+              >
+                <option value="All">All statuses</option>
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </div>
           </div>
-        )}
-        {error && (
-          <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg border border-red-200 mb-4">
-            {error}
+
+          <div className="flex items-center gap-3 mb-5 bg-white rounded-xl border border-gray-200 px-4 py-3">
+            <span className="text-xs text-gray-500 flex-shrink-0">Min score: {minScore}%</span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              value={minScore}
+              onChange={(e) => setMinScore(parseInt(e.target.value))}
+              className="flex-1 accent-teal-600"
+            />
           </div>
-        )}
 
-        {!isLoading && hasSearched && results.length === 0 && !error && (
-          <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center">
-            <p className="text-gray-500">No candidates to rank yet.</p>
-          </div>
-        )}
+          {isLoading && (
+            <div className="flex items-center gap-2 text-gray-400 text-sm py-8 justify-center">
+              <div className="w-4 h-4 border-2 border-gray-300 border-t-teal-500 rounded-full animate-spin" />
+              Ranking candidates...
+            </div>
+          )}
+          {error && (
+            <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg border border-red-200 mb-4">
+              {error}
+            </div>
+          )}
 
-        <div className="space-y-3">
-          {results.map((candidate, index) => (
-            <CandidateCard key={candidate.candidate_id} candidate={candidate} rank={index + 1} />
-          ))}
-        </div>
-      </div>
+          {!isLoading && hasSearched && filteredResults.length === 0 && !error && (
+            <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center">
+              <p className="text-gray-500">No candidates match the current filters.</p>
+            </div>
+          )}
 
-      <div>
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 sticky top-24">
-          <h2 className="font-semibold text-gray-900 mb-5">Scoring Weights</h2>
-          <div className="space-y-5">
-            {Object.entries(weights).map(([key, value]) => (
-              <div key={key}>
-                <div className="flex justify-between text-xs mb-1.5">
-                  <span className="text-gray-600">{WEIGHT_LABELS[key]}</span>
-                  <span className="text-gray-900 font-semibold">{value.toFixed(2)}</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={value}
-                  onChange={(e) => handleWeightChange(key, e.target.value)}
-                  className="w-full accent-teal-600"
-                />
-              </div>
+          <div className="space-y-3">
+            {filteredResults.map((candidate, index) => (
+              <CandidateCard
+                key={candidate.candidate_id}
+                candidate={candidate}
+                rank={index + 1}
+                jobId={jobId}
+                onStatusChange={handleStatusChange}
+              />
             ))}
           </div>
-          <p className={sumIsValid ? "text-xs mt-4 text-gray-400" : "text-xs mt-4 text-amber-600 font-medium"}>
-            {"Sum: " + weightSum.toFixed(2) + (sumIsValid ? "" : " (should total 1.0)")}
-          </p>
-          <button
-            onClick={applyWeights}
-            disabled={isLoading}
-            className="w-full bg-gradient-to-r from-teal-500 to-emerald-600 text-white text-sm font-medium py-2.5 rounded-lg mt-5 hover:from-teal-600 hover:to-emerald-700 transition-all disabled:opacity-50 shadow-sm"
-          >
-            Apply & Re-rank
-          </button>
+        </div>
+
+        <div>
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 sticky top-24">
+            <h2 className="font-semibold text-gray-900 mb-5">Scoring Weights</h2>
+            <div className="space-y-5">
+              {Object.entries(weights).map(([key, value]) => (
+                <div key={key}>
+                  <div className="flex justify-between text-xs mb-1.5">
+                    <span className="text-gray-600">{WEIGHT_LABELS[key]}</span>
+                    <span className="text-gray-900 font-semibold">{value.toFixed(2)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={value}
+                    onChange={(e) => handleWeightChange(key, e.target.value)}
+                    className="w-full accent-teal-600"
+                  />
+                </div>
+              ))}
+            </div>
+            <p className={sumIsValid ? "text-xs mt-4 text-gray-400" : "text-xs mt-4 text-amber-600 font-medium"}>
+              {"Sum: " + weightSum.toFixed(2) + (sumIsValid ? "" : " (should total 1.0)")}
+            </p>
+            <button
+              onClick={applyWeights}
+              disabled={isLoading}
+              className="w-full bg-gradient-to-r from-teal-500 to-emerald-600 text-white text-sm font-medium py-2.5 rounded-lg mt-5 hover:from-teal-600 hover:to-emerald-700 transition-all disabled:opacity-50 shadow-sm"
+            >
+              Apply & Re-rank
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -220,3 +352,4 @@ function ResultsPage() {
 }
 
 export default ResultsPage;
+

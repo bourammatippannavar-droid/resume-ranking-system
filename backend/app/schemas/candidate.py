@@ -10,6 +10,7 @@ class CandidateResponse(BaseModel):
     job_id: int
     filename: str
     file_type: str
+    status: str
     uploaded_at: datetime
 
 
@@ -20,3 +21,7 @@ class CandidateDetailResponse(CandidateResponse):
 
 class CandidateNotesUpdate(BaseModel):
     notes: str
+
+
+class CandidateStatusUpdate(BaseModel):
+    status: str
