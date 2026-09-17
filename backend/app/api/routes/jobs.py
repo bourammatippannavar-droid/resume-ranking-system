@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Job
 from app.db.session import get_db
-from app.schemas.job import JobCreate, JobResponse, JobWeightsUpdate
+from app.schemas.job import JobCreate, JobResponse, JobUpdate, JobWeightsUpdate
 
 
 logger = logging.getLogger(__name__)
@@ -38,6 +38,35 @@ def get_job(job_id: int, db: Session = Depends(get_db)) -> Job:
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
     return job
+
+
+@router.put("/{job_id}", response_model=JobResponse)
+def update_job(
+    job_id: int,
+    job_data: JobUpdate,
+    db: Session = Depends(get_db),
+) -> Job:
+    job = db.get(Job, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    for field, value in job_data.model_dump(exclude_none=True).items():
+        setattr(job, field, value)
+
+    db.commit()
+    db.refresh(job)
+    logger.info("Updated job %s", job.id)
+    return job
+
+
+@router.delete("/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_job(job_id: int, db: Session = Depends(get_db)) -> None:
+    job = db.get(Job, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    db.delete(job)
+    db.commit()
+    logger.info("Deleted job %s", job_id)
 
 
 @router.put("/{job_id}/weights", response_model=JobResponse)

@@ -15,3 +15,8 @@ class CandidateResponse(BaseModel):
 
 class CandidateDetailResponse(CandidateResponse):
     clean_text: str | None
+    notes: str | None
+
+
+class CandidateNotesUpdate(BaseModel):
+    notes: str

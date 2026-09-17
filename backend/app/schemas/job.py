@@ -8,6 +8,11 @@ class JobCreate(BaseModel):
     description_raw: str
 
 
+class JobUpdate(BaseModel):
+    title: str | None = None
+    description_raw: str | None = None
+
+
 class JobResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

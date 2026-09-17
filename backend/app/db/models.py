@@ -42,6 +42,7 @@ class Candidate(Base):
     raw_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     clean_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     file_type: Mapped[str] = mapped_column(String(10), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     job: Mapped[Job] = relationship(back_populates="candidates")
@@ -103,3 +104,4 @@ class Score(Base):
     certification_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     final_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     ranked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+

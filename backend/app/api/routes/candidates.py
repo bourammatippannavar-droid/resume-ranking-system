@@ -3,7 +3,7 @@ import os
 import tempfile
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -13,7 +13,7 @@ from app.embeddings.cpu_backend import CPUEmbeddingBackend
 from app.parsing.docx_parser import DOCXParsingError, extract_text_from_docx
 from app.parsing.pdf_parser import PDFParsingError, extract_text_from_pdf
 from app.parsing.text_cleaner import clean_text
-from app.schemas.candidate import CandidateDetailResponse, CandidateResponse
+from app.schemas.candidate import CandidateDetailResponse, CandidateNotesUpdate, CandidateResponse
 from app.vector_search.index_manager import load_or_create_index, save_index
 
 logger = logging.getLogger(__name__)
@@ -127,3 +127,50 @@ def get_candidate(
     if candidate is None:
         raise HTTPException(status_code=404, detail="Candidate not found")
     return candidate
+
+
+@router.put(
+    "/{job_id}/candidates/{candidate_id}/notes",
+    response_model=CandidateDetailResponse,
+)
+def update_candidate_notes(
+    job_id: int,
+    candidate_id: int,
+    notes_data: CandidateNotesUpdate,
+    db: Session = Depends(get_db),
+) -> Candidate:
+    candidate = db.scalar(
+        select(Candidate).where(
+            Candidate.id == candidate_id,
+            Candidate.job_id == job_id,
+        )
+    )
+    if candidate is None:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    candidate.notes = notes_data.notes
+    db.commit()
+    db.refresh(candidate)
+    logger.info("Updated notes for candidate %s", candidate_id)
+    return candidate
+
+
+@router.delete(    "/{job_id}/candidates/{candidate_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_candidate(
+    job_id: int,
+    candidate_id: int,
+    db: Session = Depends(get_db),
+) -> None:
+    candidate = db.scalar(
+        select(Candidate).where(
+            Candidate.id == candidate_id,
+            Candidate.job_id == job_id,
+        )
+    )
+    if candidate is None:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    db.delete(candidate)
+    db.commit()
+    logger.info("Deleted candidate %s from job %s", candidate_id, job_id)
+

@@ -7,6 +7,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.routes.candidates import router as candidates_router
+from app.api.routes.export import router as export_router
 from app.api.routes.jobs import router as jobs_router
 from app.api.routes.search import router as search_router
 from app.core.config import get_settings
@@ -41,6 +42,7 @@ app.add_middleware(
 app.include_router(jobs_router)
 app.include_router(candidates_router)
 app.include_router(search_router)
+app.include_router(export_router)
 
 
 @app.get("/health")
