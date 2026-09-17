@@ -199,3 +199,15 @@ python -m pytest tests\ -v
 ## License
 
 TBD
+
+## Docker
+
+Dockerfiles are provided for both backend and frontend, plus a docker-compose.yml orchestrating both services alongside PostgreSQL.
+
+```powershell
+docker-compose up --build
+```
+
+This starts Postgres, runs database migrations implicitly via the backend's startup, and serves the frontend via nginx on port 5173, proxying API calls to the backend on port 8000.
+
+**Note**: Docker configuration is provided and reviewed for correctness, but could not be locally verified end-to-end due to WSL2/Docker Desktop initialization issues encountered on the development machine (Windows virtualization feature conflicts). The Dockerfiles follow standard, well-established patterns (multi-stage build for the frontend, slim Python base with spaCy model download for the backend) and are expected to work in a properly configured Docker environment.
