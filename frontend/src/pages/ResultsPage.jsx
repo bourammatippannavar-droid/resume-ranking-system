@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { searchCandidates, updateJobWeights, getJob, updateCandidateStatus, exportResultsUrl } from "../api/client";
+import ResumePreviewModal from "../components/ResumePreviewModal";
 
 const DEFAULT_WEIGHTS = {
   weight_semantic: 0.5,
@@ -45,6 +46,7 @@ function ScoreBar({ label, value, colorClass }) {
 
 function CandidateCard({ candidate, rank, jobId, onStatusChange }) {
   const [expanded, setExpanded] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const rankClass = RANK_STYLES[rank] || "bg-gray-100 text-gray-600";
 
   const handleStatusChange = async (event) => {
@@ -101,12 +103,20 @@ function CandidateCard({ candidate, rank, jobId, onStatusChange }) {
         </select>
       </div>
 
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="text-xs text-teal-600 hover:text-teal-700 mt-4 font-medium transition-colors"
-      >
-        {expanded ? "Hide score breakdown" : "Show score breakdown"}
-      </button>
+      <div className="flex items-center gap-4 mt-4">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs text-teal-600 hover:text-teal-700 font-medium transition-colors"
+        >
+          {expanded ? "Hide score breakdown" : "Show score breakdown"}
+        </button>
+        <button
+          onClick={() => setShowPreview(true)}
+          className="text-xs text-gray-500 hover:text-gray-700 font-medium transition-colors"
+        >
+          View Resume
+        </button>
+      </div>
 
       {expanded && (
         <div className="mt-4 space-y-2.5 pt-4 border-t border-gray-100">
@@ -129,6 +139,10 @@ function CandidateCard({ candidate, rank, jobId, onStatusChange }) {
             </div>
           )}
         </div>
+      )}
+
+      {showPreview && (
+        <ResumePreviewModal candidate={candidate} jobId={jobId} onClose={() => setShowPreview(false)} />
       )}
     </div>
   );
@@ -254,18 +268,16 @@ function ResultsPage() {
               <h2 className="text-xl font-bold text-gray-900 tracking-tight">Ranked Candidates</h2>
               <p className="text-gray-500 mt-1">Sorted by weighted final score, highest first.</p>
             </div>
-            <div className="flex gap-2">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white"
-              >
-                <option value="All">All statuses</option>
-                {STATUS_OPTIONS.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white"
+            >
+              <option value="All">All statuses</option>
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
           </div>
 
           <div className="flex items-center gap-3 mb-5 bg-white rounded-xl border border-gray-200 px-4 py-3">

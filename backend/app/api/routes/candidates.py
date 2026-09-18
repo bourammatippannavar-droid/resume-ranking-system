@@ -1,9 +1,12 @@
 import logging
 import os
+import shutil
 import tempfile
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status as http_status
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -28,6 +31,7 @@ router = APIRouter(prefix="/api/v1/jobs", tags=["candidates"])
 _embedding_backend = CPUEmbeddingBackend()
 
 VALID_STATUSES = {"Under Review", "Shortlisted", "Rejected"}
+UPLOADS_DIR = "uploads"
 
 
 @router.post("/{job_id}/candidates")
@@ -38,6 +42,8 @@ def upload_candidates(
 ) -> dict[str, Any]:
     if db.get(Job, job_id) is None:
         raise HTTPException(status_code=404, detail="Job not found")
+
+    os.makedirs(UPLOADS_DIR, exist_ok=True)
 
     created: list[Candidate] = []
     failed: list[dict[str, str]] = []
@@ -63,12 +69,17 @@ def upload_candidates(
                 raw_text = extract_text_from_docx(temporary_path)
                 file_type = "docx"
 
+            permanent_filename = f"{uuid.uuid4().hex}{extension}"
+            permanent_path = os.path.join(UPLOADS_DIR, permanent_filename)
+            shutil.copy(temporary_path, permanent_path)
+
             candidate = Candidate(
                 job_id=job_id,
                 filename=filename,
                 raw_text=raw_text,
                 clean_text=clean_text(raw_text),
                 file_type=file_type,
+                file_path=permanent_path,
             )
             db.add(candidate)
             created.append(candidate)
@@ -134,6 +145,25 @@ def get_candidate(
     if candidate is None:
         raise HTTPException(status_code=404, detail="Candidate not found")
     return candidate
+
+
+@router.get("/{job_id}/candidates/{candidate_id}/file")
+def get_candidate_file(
+    job_id: int,
+    candidate_id: int,
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    candidate = db.scalar(
+        select(Candidate).where(
+            Candidate.id == candidate_id,
+            Candidate.job_id == job_id,
+        )
+    )
+    if candidate is None or not candidate.file_path or not os.path.exists(candidate.file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+
+    media_type = "application/pdf" if candidate.file_type == "pdf" else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    return FileResponse(candidate.file_path, media_type=media_type, headers={"Content-Disposition": f'inline; filename="{candidate.filename}"'})
 
 
 @router.put(
@@ -208,6 +238,9 @@ def delete_candidate(
     )
     if candidate is None:
         raise HTTPException(status_code=404, detail="Candidate not found")
+    if candidate.file_path and os.path.exists(candidate.file_path):
+        os.unlink(candidate.file_path)
     db.delete(candidate)
     db.commit()
     logger.info("Deleted candidate %s from job %s", candidate_id, job_id)
+

@@ -47,3 +47,5 @@ backend/tests/sample_files/
 backend/indexes/
 
 backend/indexes/
+
+backend/uploads/

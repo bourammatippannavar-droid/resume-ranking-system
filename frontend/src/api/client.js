@@ -49,4 +49,8 @@ export const searchCandidates = (jobId) =>
 export const exportResultsUrl = (jobId) =>
   API_BASE_URL + "/jobs/" + jobId + "/export";
 
+export const getCandidateFileUrl = (jobId, candidateId) =>
+  API_BASE_URL + "/jobs/" + jobId + "/candidates/" + candidateId + "/file";
+
 export default client;
+
